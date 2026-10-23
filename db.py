@@ -1,4 +1,5 @@
-﻿import sqlite3, datetime, os
+import sqlite3, datetime, os
+from contextlib import closing
 DB = os.getenv("BAHI_DB", "bahi.db")
 
 def conn():
@@ -10,7 +11,7 @@ def now():
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 def init():
-    with conn() as c:
+    with closing(conn()) as c, c:
         c.executescript("""
         CREATE TABLE IF NOT EXISTS invoices(
             id TEXT PRIMARY KEY, number TEXT, client_name TEXT, client_email TEXT,
@@ -24,7 +25,7 @@ def upsert_invoice(inv, source=None, language=None):
     d, amt = inv.get("detail", {}), inv.get("amount", {})
     rec = (inv.get("primary_recipients") or [{}])[0].get("billing_info", {})
     name = " ".join(filter(None, [rec.get("name", {}).get("given_name"), rec.get("name", {}).get("surname")]))
-    with conn() as c:
+    with closing(conn()) as c, c:
         c.execute("""
         INSERT INTO invoices(id, number, client_name, client_email, amount, currency, status, pay_link,
                              source, language, created_at, updated_at)
@@ -36,14 +37,14 @@ def upsert_invoice(inv, source=None, language=None):
          d.get("metadata", {}).get("recipient_view_url"), source, language, now(), now()))
 
 def log(kind, message, invoice_id=None):
-    with conn() as c:
+    with closing(conn()) as c, c:
         c.execute("INSERT INTO events(ts, kind, message, invoice_id) VALUES(?,?,?,?)",
                   (now(), kind, message, invoice_id))
 
 def list_invoices():
-    with conn() as c:
+    with closing(conn()) as c, c:
         return [dict(r) for r in c.execute("SELECT * FROM invoices ORDER BY created_at DESC")]
 
 def list_events(limit=50):
-    with conn() as c:
+    with closing(conn()) as c, c:
         return [dict(r) for r in c.execute("SELECT * FROM events ORDER BY id DESC LIMIT ?", (limit,))]
