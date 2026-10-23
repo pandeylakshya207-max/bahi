@@ -60,7 +60,7 @@ table.items th{color:var(--ink-soft);font-size:14px}
 table.ledger{width:100%;border-collapse:collapse;font-size:15px;min-width:620px}
 table.ledger th{text-align:left;color:var(--ink-soft);font-weight:500;border-bottom:2px solid var(--ink);padding:8px 6px}
 table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-align:top}
-.st{font-weight:600}.st.PAID{color:var(--paid)}.st.SENT{color:var(--warn)}.st.CANCELLED{color:#888}
+.st{font-weight:600}.st.PAID,.st.MARKED_AS_PAID{color:var(--paid)}.st.SENT{color:var(--warn)}.st.CANCELLED{color:#888}
 .feed{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
 .feed li{padding:8px 0;border-bottom:1px solid var(--rule);font-size:15px}
 .feed time{color:var(--ink-soft);font-size:13px;margin-right:10px}
@@ -107,8 +107,10 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 <div class="toast" id="toast" role="status"></div>
 <script>
 const $=id=>document.getElementById(id);
-let draft=null,rec=null,chunks=[];
+let draft=null,rec=null,chunks=[],prev=null;
 const BTNS=['readBtn','photoBtn','voiceBtn','sendBtn'];
+const isPaid=s=>s==='PAID'||s==='MARKED_AS_PAID';
+const label=s=>({MARKED_AS_PAID:'PAID (recorded)',PARTIALLY_PAID:'PART PAID'}[s]||s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(v,c)=>{try{return new Intl.NumberFormat('en-IN',{style:'currency',currency:c}).format(v)}catch{return Number(v).toFixed(2)+' '+c}};
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4500)}
@@ -163,12 +165,14 @@ async function toggleVoice(){if(rec&&rec.state==='recording'){rec.stop();return}
   catch(e){toast('Microphone not available: '+e.message)}}
 
 async function loadLedger(){try{const [inv,ev]=await Promise.all([api('/api/invoices'),api('/api/events')]);
+  if(prev){inv.forEach(i=>{if(isPaid(i.status)&&prev[i.id]&&!isPaid(prev[i.id]))toast(`${i.client_name} just paid ${fmt(i.amount,i.currency)} on invoice #${i.number}`)})}
+  prev=Object.fromEntries(inv.map(i=>[i.id,i.status]));
   const tb=$('ledger');tb.innerHTML='';
   if(!inv.length)tb.innerHTML='<tr><td colspan="6" class="hint">No invoices yet. Draft your first one above.</td></tr>';
   inv.forEach(i=>{const tr=document.createElement('tr');
-    tr.innerHTML=`<td>#${esc(i.number)}</td><td>${esc(i.client_name)}<div class="hint">${esc(i.client_email)}</div></td><td class="num">${esc(fmt(i.amount,i.currency))}</td><td><span class="st ${esc(i.status)}">${esc(i.status)}</span></td><td>${esc((i.created_at||'').replace('T',' ').slice(0,16))}</td><td><button>Check status</button></td>`;
+    tr.innerHTML=`<td>#${esc(i.number)}</td><td>${esc(i.client_name)}<div class="hint">${esc(i.client_email)}</div></td><td class="num">${esc(fmt(i.amount,i.currency))}</td><td><span class="st ${esc(i.status)}">${esc(label(i.status))}</span></td><td>${esc((i.created_at||'').replace('T',' ').slice(0,16))}</td><td><button>Check status</button></td>`;
     tr.querySelector('button').onclick=()=>refresh(i.id);tb.append(tr)});
-  const by={};inv.forEach(i=>{const c=i.currency;by[c]=by[c]||{billed:0,paid:0};by[c].billed+=i.amount;if(i.status==='PAID')by[c].paid+=i.amount});
+  const by={};inv.forEach(i=>{const c=i.currency;by[c]=by[c]||{billed:0,paid:0};by[c].billed+=i.amount;if(isPaid(i.status))by[c].paid+=i.amount});
   $('stats').innerHTML='';const add=(v,l)=>{const d=document.createElement('div');d.className='stat';d.innerHTML='<b></b><span></span>';d.querySelector('b').textContent=v;d.querySelector('span').textContent=l;$('stats').append(d)};
   add(inv.length,'Invoices');Object.entries(by).forEach(([c,v])=>{add(fmt(v.billed-v.paid,c),`Waiting to be paid (${c})`);add(fmt(v.paid,c),`Received (${c})`)});
   const f=$('feed');f.innerHTML='';if(!ev.length)f.innerHTML='<li class="hint">Nothing yet.</li>';
@@ -181,7 +185,10 @@ $('photoBtn').onclick=()=>$('file').click();
 $('file').onchange=e=>{const f=e.target.files[0];if(f)extractFile(f,f.name,'Reading the bill…');e.target.value=''};
 $('txt').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))extractText()};
 $('f_cur').onchange=recalc;$('f_email').oninput=()=>$('f_email').classList.toggle('missing',!$('f_email').value.trim());
-loadLedger();setInterval(loadLedger,15000);
+loadLedger();setInterval(loadLedger,4000);
 </script>
 </body>
 </html>
+
+
+

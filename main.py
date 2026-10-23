@@ -1,4 +1,4 @@
-﻿from typing import Optional
+from typing import Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -67,6 +67,40 @@ async def refresh(invoice_id: str):
 def events():
     return db.list_events()
 
+# ---- PayPal webhooks: payments update the ledger live ----
+import os
+from fastapi import Request
+from dotenv import dotenv_values
+
+def _webhook_id():
+    return os.getenv("PAYPAL_WEBHOOK_ID") or dotenv_values(".env").get("PAYPAL_WEBHOOK_ID")
+
+@app.post("/api/webhooks/paypal", include_in_schema=False)
+async def paypal_webhook(request: Request):
+    event = await request.json()
+    etype = event.get("event_type", "UNKNOWN")
+    wh_id = _webhook_id()
+    ok = bool(wh_id) and await run_in_threadpool(pp.verify_webhook, request.headers, event, wh_id)
+    if not ok:
+        db.log("webhook_rejected", f"Rejected an unverified webhook ({etype})")
+        raise HTTPException(400, "Webhook signature verification failed")
+    res = event.get("resource") or {}
+    inv_id = res.get("id") if str(res.get("id", "")).startswith("INV2") else (res.get("invoice") or {}).get("id")
+    if etype.startswith("INVOICING.") and inv_id:
+        inv = await run_in_threadpool(pp.get_invoice, inv_id)
+        db.upsert_invoice(inv)
+        s = pp.summarize(inv)
+        name = ((inv.get("primary_recipients") or [{}])[0].get("billing_info", {})
+                .get("name", {}).get("given_name") or "Client")
+        if etype == "INVOICING.INVOICE.PAID":
+            db.log("payment_received", f"{name} paid {s['amount']} on invoice #{s['number']}", inv_id)
+        else:
+            db.log("invoice_update", f"Invoice #{s['number']} for {name} is now {s['status']}", inv_id)
+    else:
+        db.log("paypal_event", event.get("summary") or etype)
+    return {"ok": True}
 # ---- serve the web app (must stay at the very end) ----
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+

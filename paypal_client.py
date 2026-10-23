@@ -80,3 +80,27 @@ if __name__ == "__main__":
     print("Created:", summarize(inv))
     inv = send_invoice(inv["id"])
     print("Sent:   ", summarize(inv))
+
+# ---------------- Webhooks ----------------
+WEBHOOK_EVENTS = ["INVOICING.INVOICE.PAID", "INVOICING.INVOICE.CANCELLED", "INVOICING.INVOICE.REFUNDED",
+                  "PAYMENT.CAPTURE.COMPLETED", "PAYMENT.CAPTURE.REFUNDED",
+                  "CUSTOMER.DISPUTE.CREATED", "CUSTOMER.DISPUTE.UPDATED", "CUSTOMER.DISPUTE.RESOLVED"]
+
+def verify_webhook(headers, event, webhook_id):
+    """Ask PayPal to confirm this webhook really came from PayPal (prevents fake 'paid' events)."""
+    body = {"auth_algo": headers.get("paypal-auth-algo"), "cert_url": headers.get("paypal-cert-url"),
+            "transmission_id": headers.get("paypal-transmission-id"),
+            "transmission_sig": headers.get("paypal-transmission-sig"),
+            "transmission_time": headers.get("paypal-transmission-time"),
+            "webhook_id": webhook_id, "webhook_event": event}
+    if not all(body.values()):
+        return False
+    res = api("POST", "/v1/notifications/verify-webhook-signature", json=body)
+    return res.get("verification_status") == "SUCCESS"
+
+def register_webhook(url, events=WEBHOOK_EVENTS):
+    """Replace this app's webhooks with one pointing at url (tunnel URLs change on restart)."""
+    for wh in api("GET", "/v1/notifications/webhooks").get("webhooks", []):
+        api("DELETE", f"/v1/notifications/webhooks/{wh['id']}")
+    return api("POST", "/v1/notifications/webhooks",
+               json={"url": url, "event_types": [{"name": e} for e in events]})
