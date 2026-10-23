@@ -170,6 +170,32 @@ async def forecast_get():
 async def forecast_insight():
     return await run_in_threadpool(forecast.insight)
 
+# ---- Health check + startup sync (fresh servers such as Render start with an empty disk) ----
+import threading, runpy, pathlib as _pl
+
+@app.get("/api/health", include_in_schema=False)
+def health():
+    return {"ok": True}
+
+def _bootstrap():
+    try:
+        if not db.list_invoices():
+            items = pp.api("GET", "/v2/invoicing/invoices",
+                           params={"page": 1, "page_size": 50, "total_required": "true"}).get("items", [])
+            for inv in items:
+                try:
+                    db.upsert_invoice(pp.get_invoice(inv["id"]), source="paypal-sync")
+                except Exception:
+                    pass
+            if items:
+                db.log("sync", f"Loaded {len(items)} invoices from PayPal")
+        if os.getenv("BAHI_DEMO_DISPUTE") == "1" and not _pl.Path("demo_disputes.json").exists():
+            runpy.run_path("seed_dispute.py")
+    except (Exception, SystemExit) as e:
+        db.log("error", f"Startup sync skipped: {str(e)[:200]}")
+
+threading.Thread(target=_bootstrap, daemon=True).start()
+
 # ---- serve the web app (must stay at the very end) ----
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
