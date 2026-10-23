@@ -8,13 +8,21 @@ _token = {"value": None, "exp": 0}
 class PayPalError(Exception):
     pass
 
+def key_shapes():
+    out = {}
+    for k in ("PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_BASE"):
+        v = os.getenv(k) or ""
+        out[k] = {"len": len(v), "starts": v[:2], "whitespace": v != v.strip() or " " in v}
+    return out
+
 def _get_token():
     if _token["value"] and time.time() < _token["exp"] - 60:
         return _token["value"]
     r = httpx.post(f"{BASE}/v1/oauth2/token",
                    auth=(os.environ["PAYPAL_CLIENT_ID"], os.environ["PAYPAL_CLIENT_SECRET"]),
                    data={"grant_type": "client_credentials"}, timeout=30)
-    r.raise_for_status()
+    if r.status_code >= 400:
+        raise PayPalError(f"PayPal login failed ({r.status_code}). Check PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.")
     d = r.json()
     _token.update(value=d["access_token"], exp=time.time() + d["expires_in"])
     return _token["value"]

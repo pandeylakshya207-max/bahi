@@ -178,6 +178,7 @@ def health():
     return {"ok": True}
 
 def _bootstrap():
+    print("PayPal key check:", pp.key_shapes(), flush=True)
     try:
         if not db.list_invoices():
             items = pp.api("GET", "/v2/invoicing/invoices",
