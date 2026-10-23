@@ -1,4 +1,4 @@
-﻿"""Creates a realistic demo ledger in the PayPal sandbox (overdue clients, multiple currencies)."""
+"""Creates a realistic demo ledger in the PayPal sandbox (overdue clients, multiple currencies)."""
 import datetime as dt
 import paypal_client as pp
 import db
@@ -16,6 +16,7 @@ def make(name, email, items, cur, issued_days_ago, due_in_days, note):
                                                      "email_address": email}}],
             "items": [{"name": n, "quantity": str(q), "unit_amount": {"currency_code": cur, "value": f"{p:.2f}"},
                        "unit_of_measure": "QUANTITY"} for n, q, p in items]}
+    body["invoicer"] = {"business_name": pp.os.getenv("BAHI_BUSINESS_NAME", "Aarav Designs")}
     res = pp.api("POST", "/v2/invoicing/invoices", json=body)
     iid = res.get("id") or res["href"].rstrip("/").split("/")[-1]
     inv = pp.send_invoice(iid)

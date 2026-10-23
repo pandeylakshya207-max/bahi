@@ -1,4 +1,4 @@
-﻿import sqlite3, datetime, os
+import sqlite3, datetime, os
 from contextlib import closing
 DB = os.getenv("BAHI_DB", "bahi.db")
 
@@ -8,7 +8,7 @@ def conn():
     return c
 
 def now():
-    return datetime.datetime.now().isoformat(timespec="seconds")
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
 def init():
     with closing(conn()) as c, c:
@@ -43,12 +43,15 @@ def upsert_invoice(inv, source=None, language=None):
 
 def log(kind, message, invoice_id=None):
     with closing(conn()) as c, c:
+        last = c.execute("SELECT kind, message FROM events ORDER BY id DESC LIMIT 1").fetchone()
+        if kind == "error" and last and last["kind"] == kind and last["message"] == message:
+            return
         c.execute("INSERT INTO events(ts, kind, message, invoice_id) VALUES(?,?,?,?)",
                   (now(), kind, message, invoice_id))
 
 def list_invoices():
     with closing(conn()) as c:
-        return [dict(r) for r in c.execute("SELECT * FROM invoices ORDER BY created_at DESC")]
+        return [dict(r) for r in c.execute("SELECT * FROM invoices ORDER BY number DESC")]
 
 def list_events(limit=50):
     with closing(conn()) as c:

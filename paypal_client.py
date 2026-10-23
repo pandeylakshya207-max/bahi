@@ -73,6 +73,7 @@ def create_invoice(client_name, client_email, items, currency="USD", due_days=7,
             "unit_amount": {"currency_code": currency, "value": f'{float(it["unit_amount"]):.2f}'},
             "unit_of_measure": "QUANTITY"} for it in items],
     }
+    body["invoicer"] = {"business_name": os.getenv("BAHI_BUSINESS_NAME", "Aarav Designs")}
     res = api("POST", "/v2/invoicing/invoices", json=body)
     inv_id = res.get("id") or res["href"].rstrip("/").split("/")[-1]
     return get_invoice(inv_id)

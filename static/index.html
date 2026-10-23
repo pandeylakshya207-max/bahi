@@ -31,7 +31,7 @@ button.rec{border-color:var(--margin);color:var(--margin)}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .chip{font:400 14px Mukta,sans-serif;padding:4px 10px;border-radius:999px;background:#F3F5F8;border:1px solid #DCE2EA}
 .hint{color:var(--ink-soft);font-size:14px}
-.sheet{position:relative;border:1px solid #DCE2EA;border-radius:10px;padding:22px 22px 22px 64px;min-height:440px;
+.sheet{position:relative;border:1px solid #DCE2EA;border-radius:10px;padding:36px 22px 36px 64px;min-height:440px;
  background:repeating-linear-gradient(#fff 0 35px,var(--rule) 35px 36px)}
 .sheet::before{content:"";position:absolute;left:48px;top:0;bottom:0;border-left:2px solid var(--margin);opacity:.7}
 .field{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;min-height:36px}
@@ -39,11 +39,11 @@ button.rec{border-color:var(--margin);color:var(--margin)}
 .sheet input,.sheet select{font:inherit;border:0;border-bottom:1px dashed transparent;background:transparent;padding:2px 4px;width:100%;color:var(--ink)}
 .sheet input:hover{border-bottom-color:#B9C4D4}
 .missing{background:#FFF4D6!important;border-bottom:1px dashed var(--warn)!important}
-table.items{width:100%;border-collapse:collapse;margin-top:6px}
+table.items{width:100%;border-collapse:collapse;margin-top:0}
 table.items th,table.items td{height:36px;padding:0 4px;text-align:left;font-weight:400}
 table.items th{color:var(--ink-soft);font-size:14px}
 .num,.num input{text-align:right}
-.total{font:800 26px Martel,serif;text-align:right;margin:4px 0 6px}
+.total{font:800 26px/36px Martel,serif;text-align:right;margin:0;height:36px}
 .meta{display:flex;gap:8px;flex-wrap:wrap;min-height:36px;align-items:center}
 .badge{font-size:13px;padding:2px 9px;border-radius:999px;background:#EEF1F5}
 .stamp{position:absolute;right:28px;top:64px;border:4px solid var(--paid);color:var(--paid);font:800 34px Martel,serif;
@@ -107,10 +107,29 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 .fc-list li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--rule)}
 .risk{color:var(--margin);font-weight:600}
 #fcInsight{font-size:16px;color:var(--ink);background:#FFFBEF;border-left:4px solid var(--thread);padding:10px 14px;border-radius:4px}
+.how{max-width:1180px;margin:18px auto 0;padding:0 16px}
+.how ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;counter-reset:s}
+.how li{counter-increment:s;background:#fff;border:1px solid #DCE2EA;border-radius:10px;padding:12px 14px 12px 46px;position:relative}
+.how li::before{content:counter(s);position:absolute;left:14px;top:13px;width:22px;height:22px;border-radius:50%;background:var(--cover);color:#fff;font:700 13px/22px Mukta,sans-serif;text-align:center}
+.how b{display:block;font-weight:600}
+.how span{color:var(--ink-soft);font-size:14px}
+.how p{margin:8px 0 0;font-size:13px;color:var(--ink-soft)}
+@media(max-width:900px){.how ol{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.how ol{grid-template-columns:1fr}}
+.foot{max-width:1180px;margin:0 auto 40px;padding:0 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#f_note{min-height:0;border:0;border-bottom:1px dashed transparent;border-radius:0;background:transparent;padding:0 4px;resize:none;line-height:36px;font:inherit;color:var(--ink);overflow:hidden}
+.sheet .row{margin-top:0;min-height:36px}
+.sheet .row button{padding:4px 14px}
 </style>
 </head>
 <body>
 <header><div class="bar"><div class="logo">बही Bahi</div><div class="tag">Your PayPal back office. Say it, snap it, or type it, in any language.</div></div></header>
+<section class="how" aria-label="How Bahi works"><ol>
+<li><b>Say it, snap it or type it</b><span>Hinglish text, a voice note or a photo of a bill</span></li>
+<li><b>Bahi drafts the invoice</b><span>Gemini reads it; you check every field</span></li>
+<li><b>PayPal sends and tracks it</b><span>Real PayPal invoices; payments update live by webhook</span></li>
+<li><b>Bahi chases the money</b><span>Reminders, refunds and dispute defence, only after you confirm</span></li>
+</ol><p>PayPal sandbox demo: no real money moves.</p></section>
 <main>
 <section class="panel">
   <h2>What do you want to bill?</h2>
@@ -134,7 +153,7 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
     <div class="field"><label for="f_due">Due in days</label><input id="f_due" type="number" min="0" style="max-width:90px"></div>
     <table class="items"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th></tr></thead><tbody id="items"></tbody></table>
     <div class="total" id="total"></div>
-    <div class="field"><label for="f_note">Note</label><input id="f_note"></div>
+    <div class="field"><label for="f_note">Note</label><textarea id="f_note" rows="2"></textarea></div>
     <div class="row"><button class="primary" id="sendBtn">Send via PayPal</button><a id="payLink" target="_blank" rel="noopener" hidden></a></div>
   </div>
   <div class="stamp" id="stamp">SENT</div>
@@ -169,6 +188,7 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 </section>
 <section class="panel wide"><h2>Activity</h2><ul class="feed" id="feed"></ul></section>
 </main>
+<footer class="foot"><button id="resetBtn">Reset demo data</button><span class="hint">Reloads the ledger from PayPal and restores the demo dispute. Nothing in PayPal is changed.</span></footer>
 <div class="toast" id="toast" role="status"></div>
 <script>
 const $=id=>document.getElementById(id);
@@ -246,7 +266,7 @@ async function loadLedger(){try{const [inv,ev]=await Promise.all([api('/api/invo
   $('stats').innerHTML='';const add=(v,l)=>{const d=document.createElement('div');d.className='stat';d.innerHTML='<b></b><span></span>';d.querySelector('b').textContent=v;d.querySelector('span').textContent=l;$('stats').append(d)};
   add(inv.length,'Invoices');{const od=inv.filter(isOverdue).length;if(od)add(od,'Overdue');}Object.entries(by).forEach(([c,v])=>{add(fmt(v.open,c),`Waiting to be paid (${c})`);add(fmt(v.paid,c),`Received (${c})`)});
   const f=$('feed');f.innerHTML='';if(!ev.length)f.innerHTML='<li class="hint">Nothing yet.</li>';
-  ev.forEach(e=>{const li=document.createElement('li');li.innerHTML='<time></time><span></span>';li.querySelector('time').textContent=(e.ts||'').replace('T',' ').slice(5,16);li.querySelector('span').textContent=e.message;f.append(li)})}
+  ev.forEach(e=>{const li=document.createElement('li');li.innerHTML='<time></time><span></span>';li.querySelector('time').textContent=fmtTime(e.ts);li.querySelector('span').textContent=e.message;f.append(li)})}
   catch(e){console.error(e)}}
 async function refresh(id){try{const r=await api(`/api/invoices/${id}/refresh`,{method:'POST'});toast(`Invoice #${r.number} is ${r.status}.`);loadLedger()}catch(e){toast(e.message)}}
 
@@ -324,6 +344,9 @@ async function loadForecast(){try{const f=await api('/api/forecast');
   $('fcNote').textContent=`Rupee amounts use ${f.rates_source}. What you actually receive depends on PayPal's conversion rate and fees.`;
   api('/api/forecast/insight').then(x=>{$('fcInsight').textContent=x.insight}).catch(()=>{$('fcInsight').textContent=''})}
   catch(e){console.error(e)}}
+const fmtTime=t=>{if(!t)return '';const d=new Date(t);return isNaN(d)?t:d.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})};
+$('resetBtn').onclick=async()=>{if(!window.confirm('Reload everything from PayPal and restore the demo dispute?'))return;
+  try{await api('/api/demo/reset',{method:'POST'});$('chatlog').innerHTML='';toast('Demo reset. Ledger reloaded from PayPal.');loadLedger();loadDisputes();loadForecast()}catch(e){toast(e.message)}};
 loadLedger();setInterval(loadLedger,4000);loadDisputes();setInterval(loadDisputes,30000);loadForecast();setInterval(loadForecast,60000);
 </script>
 </body>

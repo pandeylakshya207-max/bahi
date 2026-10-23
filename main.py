@@ -197,6 +197,19 @@ def _bootstrap():
 
 threading.Thread(target=_bootstrap, daemon=True).start()
 
+@app.post("/api/demo/reset", include_in_schema=False)
+async def demo_reset():
+    def _do():
+        with db.closing(db.conn()) as c, c:
+            c.execute("DELETE FROM invoices")
+            c.execute("DELETE FROM events")
+        _pl.Path("demo_disputes.json").unlink(missing_ok=True)
+        agent.PENDING.clear()
+        os.environ["BAHI_DEMO_DISPUTE"] = "1"
+        _bootstrap()
+    await run_in_threadpool(_do)
+    return {"ok": True}
+
 # ---- serve the web app (must stay at the very end) ----
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
