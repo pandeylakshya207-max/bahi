@@ -130,6 +130,35 @@ def dismiss_action(action_id: str):
         raise HTTPException(404, "Action not found")
     return {"ok": True}
 
+# ---- Dispute Defender ----
+import disputes
+
+class AssessIn(BaseModel):
+    seller_notes: str = ""
+
+class DisputeActIn(BaseModel):
+    action: str
+    text: str
+    amount: float = 0
+
+@app.get("/api/disputes", summary="Real PayPal disputes + labelled demo disputes")
+async def disputes_list():
+    return await run_in_threadpool(disputes.list_disputes)
+
+@app.post("/api/disputes/{dispute_id}/assess", summary="Gather evidence and let the AI assess the case")
+async def disputes_assess(dispute_id: str, body: AssessIn):
+    try:
+        return await run_in_threadpool(disputes.assess, dispute_id, body.seller_notes)
+    except pp.PayPalError as e:
+        raise HTTPException(502, str(e))
+
+@app.post("/api/disputes/{dispute_id}/act", summary="User-confirmed response: respond / offer / accept")
+async def disputes_act(dispute_id: str, body: DisputeActIn):
+    try:
+        return await run_in_threadpool(disputes.act, dispute_id, body.action, body.text, body.amount)
+    except (pp.PayPalError, ValueError) as e:
+        raise HTTPException(502, str(e))
+
 # ---- serve the web app (must stay at the very end) ----
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

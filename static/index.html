@@ -76,6 +76,23 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 #ask{flex:1;min-width:200px;border:1px solid #C9D2DE;border-radius:8px;padding:10px 12px;font:inherit;color:var(--ink)}
 @media(max-width:600px){.msg,.card{max-width:92%}}
 .late{color:var(--margin);font-weight:600}
+.done{color:var(--paid);font-weight:600}
+.drow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--rule)}
+.tag{font-size:12px;padding:1px 8px;border-radius:999px;background:#EEF1F5;color:var(--ink-soft);margin-left:8px;vertical-align:middle}
+.defense{margin-top:14px;border-top:2px solid var(--ink);padding-top:14px}
+.dhead{display:flex;gap:32px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.dstrength{font:800 24px Martel,serif}
+.s-STRONG{color:var(--paid)}.s-MODERATE{color:var(--warn)}.s-WEAK{color:var(--margin)}
+.meter{width:200px;height:10px;background:#EEF1F5;border-radius:999px;overflow:hidden;margin-bottom:4px}
+.meter span{display:block;height:100%;background:var(--ink)}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media(max-width:800px){.cols{grid-template-columns:1fr}}
+.cols h3{font:700 15px Martel,serif;margin:6px 0}
+.cols ul{margin:0;padding-left:18px}.cols li{margin-bottom:6px}
+.rec{background:#FFFBEF;border-left:4px solid var(--thread);padding:10px 14px;margin:14px 0;border-radius:4px}
+.rec p{margin:4px 0 0}
+.defense textarea{min-height:110px;margin:4px 0 12px}
+#offerAmt{border:1px solid #C9D2DE;border-radius:8px;padding:8px;font:inherit;width:110px}
 </style>
 </head>
 <body>
@@ -114,6 +131,12 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
   <div class="chatlog" id="chatlog" aria-live="polite"></div>
   <div class="chips" id="askChips"></div>
   <form class="row" id="askForm"><input id="ask" placeholder="Kaun kaun late hai? Sabko reminder bhejo" autocomplete="off" aria-label="Ask Bahi"><button class="primary" id="askBtn">Ask</button></form>
+</section>
+<section class="panel wide" id="disputePanel" hidden>
+  <h2>Disputes</h2>
+  <p class="hint">Bahi gathers the evidence and drafts your response. Nothing reaches PayPal until you send it.</p>
+  <div id="disputeList"></div>
+  <div id="defense" hidden></div>
 </section>
 <section class="panel wide">
   <h2>Ledger</h2>
@@ -227,7 +250,42 @@ async function ask(e){if(e)e.preventDefault();const q=$('ask').value.trim();if(!
   finally{$('askBtn').disabled=false;$('ask').focus()}}
 $('askForm').onsubmit=ask;
 ["Sarah ka payment aaya kya?","Kaun kaun late hai? Sabko polite reminder bhejo","Sarah ko 50 dollar refund kar do, ek revision cancel hua"].forEach(q=>{const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=q;b.onclick=()=>{$('ask').value=q;$('ask').focus()};$('askChips').append(b)});
-loadLedger();setInterval(loadLedger,4000);
+async function loadDisputes(){try{const ds=await api('/api/disputes');$('disputePanel').hidden=!ds.length;const L=$('disputeList');L.innerHTML='';
+  ds.forEach(d=>{const row=document.createElement('div');row.className='drow';const days=d.due?Math.ceil((new Date(d.due)-new Date())/864e5):null;
+    row.innerHTML='<div><b></b><span class="tag" hidden>Demo</span><div class="hint"></div></div><button>Build my defense</button>';
+    row.querySelector('b').textContent=`${d.reason}: ${fmt(+d.amount.value,d.amount.currency_code)}`;row.querySelector('.tag').hidden=!d.demo;
+    row.querySelector('.hint').textContent=`${d.id}, ${(d.status||'').replace(/_/g,' ').toLowerCase()}${days!==null?`, respond within ${days} days`:''}`;
+    row.querySelector('button').onclick=()=>openDefense(d);L.append(row)})}catch(e){console.error(e)}}
+function openDefense(d){const box=$('defense');box.hidden=false;
+  box.innerHTML='<div class="defense"><label class="hint" for="sellerNotes">Anything Bahi should know? What you delivered, when, any approvals. Optional.</label><textarea id="sellerNotes" placeholder="All 3 logo concepts emailed on 20 Oct; client approved logo 1 on a call."></textarea><div class="row" style="margin-top:0"><button class="primary" id="analyzeBtn">Gather evidence and assess</button></div></div>';
+  $('analyzeBtn').onclick=async()=>{const b=$('analyzeBtn');b.disabled=true;b.textContent='Reading the invoice, payments and history?';
+    try{renderDefense(d,await api(`/api/disputes/${encodeURIComponent(d.id)}/assess`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seller_notes:$('sellerNotes').value})}))}
+    catch(e){toast(e.message);b.disabled=false;b.textContent='Gather evidence and assess'}};
+  box.scrollIntoView({block:'start'})}
+function renderDefense(d,res){const a=res.assessment,cur=d.amount.currency_code,pct=Math.round((a.win_likelihood||0)*100);
+  const li=xs=>(xs||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="hint">Nothing found</li>';
+  const recs={FIGHT:'Fight it with evidence',OFFER_PARTIAL_REFUND:`Offer a partial refund of ${fmt(a.suggested_refund||0,cur)}`,ACCEPT:'Accept the claim'};
+  const st=String(a.strength||'');
+  $('defense').innerHTML=`<div class="defense">
+  <div class="dhead"><div><div class="hint">Bahi's assessment</div><div class="dstrength s-${esc(st)}">${esc(st.charAt(0)+st.slice(1).toLowerCase())} case</div></div>
+  <div><div class="meter" aria-hidden="true"><span style="width:${pct}%"></span></div><div class="hint">${pct}% chance to win if you fight</div></div></div>
+  <p><b>The claim:</b> ${esc(a.buyer_claim)}</p>
+  <div class="cols"><div><h3>In your favour</h3><ul>${li(a.facts_for_seller)}</ul></div><div><h3>Against you</h3><ul>${li(a.weaknesses)}</ul></div><div><h3>Attach if you have it</h3><ul>${li(a.missing_evidence)}</ul></div></div>
+  <div class="rec"><b>Bahi recommends: ${esc(recs[a.recommendation]||a.recommendation)}</b><p>${esc(a.reasoning)}</p></div>
+  <label class="hint" for="respTxt">Response to PayPal. Edit anything before sending.</label><textarea id="respTxt"></textarea>
+  <label class="hint" for="buyerTxt">Message to the buyer</label><textarea id="buyerTxt"></textarea>
+  <div class="row"><button id="dRespond">Send response to PayPal</button><button id="dOffer">Offer refund of</button><input id="offerAmt" type="number" min="0" step="0.01" aria-label="Refund amount"><button id="dAccept">Accept claim</button></div>
+  <p class="hint" id="dStatus"></p></div>`;
+  $('respTxt').value=a.response_to_paypal||'';$('buyerTxt').value=a.message_to_buyer||'';$('offerAmt').value=Number(a.suggested_refund||0).toFixed(2);
+  const recBtn={FIGHT:'dRespond',OFFER_PARTIAL_REFUND:'dOffer',ACCEPT:'dAccept'}[a.recommendation];if(recBtn)$(recBtn).classList.add('primary');
+  const go=async(action,text,amount,question)=>{if(!window.confirm(question))return;
+    try{const r=await api(`/api/disputes/${encodeURIComponent(d.id)}/act`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,text,amount})});
+      $('dStatus').textContent='Done. '+r.message;$('dStatus').className='done';['dRespond','dOffer','dAccept'].forEach(i=>$(i).disabled=true);loadDisputes();loadLedger()}
+    catch(e){toast(e.message)}};
+  $('dRespond').onclick=()=>go('respond',$('respTxt').value,0,'Send this response to PayPal?');
+  $('dOffer').onclick=()=>{const v=parseFloat($('offerAmt').value)||0;go('offer',$('buyerTxt').value,v,`Offer a ${fmt(v,cur)} refund to settle this dispute?`)};
+  $('dAccept').onclick=()=>go('accept',$('buyerTxt').value,0,'Accept the claim? PayPal will refund the disputed amount.')}
+loadLedger();setInterval(loadLedger,4000);loadDisputes();setInterval(loadDisputes,30000);
 </script>
 </body>
 </html>
