@@ -100,7 +100,7 @@ def insight():
         return {"insight": _ins["text"]}
     prompt = ("You advise an Indian freelancer paid by overseas clients through PayPal. Using ONLY this forecast "
               "(INR amounts are approximate), write 2-3 short plain-text sentences: how much is likely to arrive in "
-              "the next 30 days, which client is the biggest risk and one concrete NEXT action. If a reminder was already sent, do not suggest another reminder; suggest a sensible next step instead (for example a short personal follow-up message, or offering a payment plan). No markdown.\n"
+              "the next 30 days, which client is the biggest risk and one concrete NEXT action. Only mention reminders if an item's basis explicitly says a reminder was sent; never guess. If one was sent, do not suggest another reminder; suggest a sensible next step instead (for example a short personal follow-up message, or offering a payment plan). No markdown.\n"
               + json.dumps(f, default=str))
     resp = generate(prompt, types.GenerateContentConfig(temperature=0.3))
     _ins.update(key=key, text=(resp.text or "").strip())
