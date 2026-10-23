@@ -159,6 +159,17 @@ async def disputes_act(dispute_id: str, body: DisputeActIn):
     except (pp.PayPalError, ValueError) as e:
         raise HTTPException(502, str(e))
 
+# ---- Cash-flow forecast ----
+import forecast
+
+@app.get("/api/forecast", summary="Next 30 days cash-flow forecast in INR")
+async def forecast_get():
+    return await run_in_threadpool(forecast.forecast, 30)
+
+@app.get("/api/forecast/insight", summary="AI insight on the forecast")
+async def forecast_insight():
+    return await run_in_threadpool(forecast.insight)
+
 # ---- serve the web app (must stay at the very end) ----
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -126,7 +126,7 @@ def assess(dispute_id, seller_notes=""):
                                   evidence=json.dumps(ev, indent=1, default=str),
                                   notes=seller_notes or "(none provided)"),
                     types.GenerateContentConfig(response_mime_type="application/json",
-                                                response_schema=Assessment, temperature=0.2))
+                                                response_schema=Assessment, temperature=0.05))
     a = resp.parsed if isinstance(resp.parsed, Assessment) else Assessment.model_validate_json(resp.text)
     db.log("dispute_assessed", f"Bahi assessed dispute {dispute_id}: {a.strength} case, recommends {a.recommendation}",
            ev["invoice_id"])

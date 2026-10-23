@@ -115,8 +115,16 @@ def propose_cancel_invoice(invoice_id: str, reason: str) -> dict:
     return _propose("cancel", r, f"Cancel invoice #{r['number']} for {r['client_name']} "
                                  f"({r['amount']:.2f} {r['currency']})", reason=reason)
 
+@_safe
+def cash_flow_forecast(days: int = 30) -> dict:
+    """Forecast money likely to arrive in the next `days` days from unpaid invoices: each client's
+    likely pay date and probability (from their real payment history), converted to INR at
+    reference rates. Use for any question about future income."""
+    import forecast
+    return forecast.forecast(days)
+
 TOOLS = [list_invoices, get_invoice_details, propose_payment_reminder,
-         propose_mark_as_paid, propose_refund, propose_cancel_invoice]
+         propose_mark_as_paid, propose_refund, propose_cancel_invoice, cash_flow_forecast]
 
 SYSTEM = """You are Bahi, the AI back-office agent for an Indian freelancer who is paid by overseas clients through PayPal.
 Today is {today}.
@@ -128,6 +136,7 @@ Rules:
   The user then sees a confirmation card. Say the action is waiting for their confirmation; never claim it is done.
 - Write plain text only, no markdown, no asterisks.
 - Refer to invoices only by their number like #0001, never by the internal INV2 id.
+- For questions about future income use cash_flow_forecast; say INR amounts are approximate.
 - Never invent amounts, emails or invoice numbers. Use the invoice currency.
 - An invoice is overdue if it is unpaid and its due_date is before today."""
 

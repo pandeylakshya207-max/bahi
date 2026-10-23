@@ -93,6 +93,20 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 .rec p{margin:4px 0 0}
 .defense textarea{min-height:110px;margin:4px 0 12px}
 #offerAmt{border:1px solid #C9D2DE;border-radius:8px;padding:8px;font:inherit;width:110px}
+.fc-head{display:flex;gap:44px;flex-wrap:wrap;margin-bottom:10px}
+.fc-head b{display:block;font:800 28px Martel,serif}
+.bars{display:flex;gap:16px;align-items:flex-end;height:180px;border-bottom:2px solid var(--ink);margin-top:8px}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.bar .v{font-size:13px;margin-bottom:4px;white-space:nowrap}
+.bar .best{width:100%;max-width:72px;background:#E3E8EF;border-radius:6px 6px 0 0;position:relative}
+.bar .exp{position:absolute;bottom:0;left:0;right:0;background:var(--cover);border-radius:6px 6px 0 0}
+.blabels{display:flex;gap:16px;margin-top:6px}.blabels span{flex:1;text-align:center;font-size:13px;color:var(--ink-soft)}
+.legend{display:flex;gap:18px;font-size:13px;color:var(--ink-soft);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.fc-list{list-style:none;padding:0;margin:14px 0 0}
+.fc-list li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--rule)}
+.risk{color:var(--margin);font-weight:600}
+#fcInsight{font-size:16px;color:var(--ink);background:#FFFBEF;border-left:4px solid var(--thread);padding:10px 14px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -137,6 +151,16 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
   <p class="hint">Bahi gathers the evidence and drafts your response. Nothing reaches PayPal until you send it.</p>
   <div id="disputeList"></div>
   <div id="defense" hidden></div>
+</section>
+<section class="panel wide" id="forecastPanel">
+  <h2>Next 30 days</h2>
+  <div class="fc-head"><div><b id="fcExpected">?</b><span class="hint">likely to arrive</span></div><div><b id="fcBest">?</b><span class="hint">if every client pays</span></div></div>
+  <div class="bars" id="fcBars" aria-label="Expected income per week"></div>
+  <div class="blabels" id="fcLabels"></div>
+  <div class="legend"><span><i style="background:var(--cover)"></i>Likely</span><span><i style="background:#E3E8EF"></i>If everyone pays</span></div>
+  <ul class="fc-list" id="fcList"></ul>
+  <p id="fcInsight">Bahi is reading your clients' payment habits?</p>
+  <p class="hint" id="fcNote"></p>
 </section>
 <section class="panel wide">
   <h2>Ledger</h2>
@@ -285,7 +309,22 @@ function renderDefense(d,res){const a=res.assessment,cur=d.amount.currency_code,
   $('dRespond').onclick=()=>go('respond',$('respTxt').value,0,'Send this response to PayPal?');
   $('dOffer').onclick=()=>{const v=parseFloat($('offerAmt').value)||0;go('offer',$('buyerTxt').value,v,`Offer a ${fmt(v,cur)} refund to settle this dispute?`)};
   $('dAccept').onclick=()=>go('accept',$('buyerTxt').value,0,'Accept the claim? PayPal will refund the disputed amount.')}
-loadLedger();setInterval(loadLedger,4000);loadDisputes();setInterval(loadDisputes,30000);
+const fmtINR=v=>v==null?'n/a':new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(v);
+async function loadForecast(){try{const f=await api('/api/forecast');
+  $('fcExpected').textContent=fmtINR(f.expected_inr);$('fcBest').textContent=fmtINR(f.best_case_inr);
+  const max=Math.max(1,...f.weeks.map(w=>w.best_inr));const B=$('fcBars'),Lb=$('fcLabels');B.innerHTML='';Lb.innerHTML='';
+  f.weeks.forEach(w=>{const col=document.createElement('div');col.className='bar';
+    col.innerHTML=`<div class="v"></div><div class="best" style="height:${Math.max(2,Math.round(w.best_inr/max*140))}px"><div class="exp" style="height:${w.best_inr?Math.round(w.expected_inr/w.best_inr*100):0}%"></div></div>`;
+    col.querySelector('.v').textContent=w.expected_inr?fmtINR(w.expected_inr):'';B.append(col);
+    const s=document.createElement('span');s.textContent='Week of '+w.label;Lb.append(s)});
+  const L=$('fcList');L.innerHTML='';if(!f.items.length)L.innerHTML='<li class="hint">No unpaid invoices. Nothing to forecast.</li>';
+  f.items.forEach(i=>{const li=document.createElement('li');li.innerHTML='<span><b></b> <span class="hint"></span></span><span></span>';
+    li.querySelector('b').textContent=`${i.client}: ${fmt(i.amount,i.currency)} (? ${fmtINR(i.amount_inr)})`;li.querySelector('.hint').textContent=i.basis;
+    const r=li.lastChild;r.textContent=`${i.expected_label}, ${Math.round(i.probability*100)}% likely`;if(i.probability<0.6)r.className='risk';L.append(li)});
+  $('fcNote').textContent=`Rupee amounts use ${f.rates_source}. What you actually receive depends on PayPal's conversion rate and fees.`;
+  api('/api/forecast/insight').then(x=>{$('fcInsight').textContent=x.insight}).catch(()=>{$('fcInsight').textContent=''})}
+  catch(e){console.error(e)}}
+loadLedger();setInterval(loadLedger,4000);loadDisputes();setInterval(loadDisputes,30000);loadForecast();setInterval(loadForecast,60000);
 </script>
 </body>
 </html>
