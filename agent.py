@@ -40,7 +40,7 @@ def _propose(kind, row, summary, **params):
 def list_invoices(status: str = "") -> list[dict]:
     """List the user's invoices from the ledger, newest first. Optional status filter:
     SENT, PAID, MARKED_AS_PAID, PARTIALLY_PAID, CANCELLED, REFUNDED, PARTIALLY_REFUNDED."""
-    keys = ("id", "number", "client_name", "client_email", "amount", "currency", "status", "created_at")
+    keys = ("id", "number", "client_name", "client_email", "amount", "currency", "status", "due_date", "created_at")
     return [{k: r[k] for k in keys} for r in db.list_invoices()
             if not status or r["status"] == status.upper()]
 

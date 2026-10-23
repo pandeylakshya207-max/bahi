@@ -60,7 +60,7 @@ table.items th{color:var(--ink-soft);font-size:14px}
 table.ledger{width:100%;border-collapse:collapse;font-size:15px;min-width:620px}
 table.ledger th{text-align:left;color:var(--ink-soft);font-weight:500;border-bottom:2px solid var(--ink);padding:8px 6px}
 table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-align:top}
-.st{font-weight:600}.st.PAID,.st.MARKED_AS_PAID{color:var(--paid)}.st.SENT{color:var(--warn)}.st.CANCELLED{color:#888}
+.st{font-weight:600}.st.PAID,.st.MARKED_AS_PAID,.st.PARTIALLY_REFUNDED,.st.REFUNDED{color:var(--paid)}.st.SENT{color:var(--warn)}.st.CANCELLED{color:#888}
 .feed{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
 .feed li{padding:8px 0;border-bottom:1px solid var(--rule);font-size:15px}
 .feed time{color:var(--ink-soft);font-size:13px;margin-right:10px}
@@ -75,6 +75,7 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 .card .done{color:var(--paid);font-weight:600}
 #ask{flex:1;min-width:200px;border:1px solid #C9D2DE;border-radius:8px;padding:10px 12px;font:inherit;color:var(--ink)}
 @media(max-width:600px){.msg,.card{max-width:92%}}
+.late{color:var(--margin);font-weight:600}
 </style>
 </head>
 <body>
@@ -117,7 +118,7 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 <section class="panel wide">
   <h2>Ledger</h2>
   <div class="stats" id="stats"></div>
-  <div class="scroll"><table class="ledger"><thead><tr><th>No.</th><th>Client</th><th class="num">Amount</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody id="ledger"></tbody></table></div>
+  <div class="scroll"><table class="ledger"><thead><tr><th>No.</th><th>Client</th><th class="num">Amount</th><th>Status</th><th>Due</th><th></th></tr></thead><tbody id="ledger"></tbody></table></div>
 </section>
 <section class="panel wide"><h2>Activity</h2><ul class="feed" id="feed"></ul></section>
 </main>
@@ -126,8 +127,8 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 const $=id=>document.getElementById(id);
 let draft=null,rec=null,chunks=[],prev=null;
 const BTNS=['readBtn','photoBtn','voiceBtn','sendBtn'];
-const isPaid=s=>s==='PAID'||s==='MARKED_AS_PAID';
-const label=s=>({MARKED_AS_PAID:'PAID (recorded)',PARTIALLY_PAID:'PART PAID'}[s]||s);
+const isPaid=s=>['PAID','MARKED_AS_PAID','PARTIALLY_REFUNDED','REFUNDED'].includes(s);
+const label=s=>({MARKED_AS_PAID:'PAID (recorded)',PARTIALLY_PAID:'PART PAID',PARTIALLY_REFUNDED:'PART REFUNDED'}[s]||s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(v,c)=>{try{return new Intl.NumberFormat('en-IN',{style:'currency',currency:c}).format(v)}catch{return Number(v).toFixed(2)+' '+c}};
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4500)}
@@ -181,17 +182,22 @@ async function toggleVoice(){if(rec&&rec.state==='recording'){rec.stop();return}
     rec.start();$('voiceBtn').textContent='Stop recording';$('voiceBtn').classList.add('rec');$('status').textContent='Recording. Speak naturally, then press Stop recording.'}
   catch(e){toast('Microphone not available: '+e.message)}}
 
+const OPEN=['SENT','UNPAID','PARTIALLY_PAID'];
+function daysLeft(i){return i.due_date?Math.round((new Date(i.due_date+'T00:00:00')-new Date(new Date().toDateString()))/864e5):null}
+function isOverdue(i){const d=daysLeft(i);return OPEN.includes(i.status)&&d!==null&&d<0}
+function dueCell(i){const d=daysLeft(i);if(d===null)return '';if(isOverdue(i))return `<span class="late">Overdue ${-d}d</span>`;
+  if(OPEN.includes(i.status))return d===0?'Today':`In ${d}d`;return `<span class="hint">${esc(i.due_date)}</span>`}
 async function loadLedger(){try{const [inv,ev]=await Promise.all([api('/api/invoices'),api('/api/events')]);
   if(prev){inv.forEach(i=>{if(isPaid(i.status)&&prev[i.id]&&!isPaid(prev[i.id]))toast(`${i.client_name} just paid ${fmt(i.amount,i.currency)} on invoice #${i.number}`)})}
   prev=Object.fromEntries(inv.map(i=>[i.id,i.status]));
   const tb=$('ledger');tb.innerHTML='';
   if(!inv.length)tb.innerHTML='<tr><td colspan="6" class="hint">No invoices yet. Draft your first one above.</td></tr>';
   inv.forEach(i=>{const tr=document.createElement('tr');
-    tr.innerHTML=`<td>#${esc(i.number)}</td><td>${esc(i.client_name)}<div class="hint">${esc(i.client_email)}</div></td><td class="num">${esc(fmt(i.amount,i.currency))}</td><td><span class="st ${esc(i.status)}">${esc(label(i.status))}</span></td><td>${esc((i.created_at||'').replace('T',' ').slice(0,16))}</td><td><button>Check status</button></td>`;
+    tr.innerHTML=`<td>#${esc(i.number)}</td><td>${esc(i.client_name)}<div class="hint">${esc(i.client_email)}</div></td><td class="num">${esc(fmt(i.amount,i.currency))}</td><td><span class="st ${esc(i.status)}">${esc(label(i.status))}</span></td><td>${dueCell(i)}</td><td><button>Check status</button></td>`;
     tr.querySelector('button').onclick=()=>refresh(i.id);tb.append(tr)});
-  const by={};inv.forEach(i=>{const c=i.currency;by[c]=by[c]||{billed:0,paid:0};by[c].billed+=i.amount;if(isPaid(i.status))by[c].paid+=i.amount});
+  const by={};inv.forEach(i=>{const c=i.currency;by[c]=by[c]||{open:0,paid:0};if(OPEN.includes(i.status))by[c].open+=i.amount;if(isPaid(i.status))by[c].paid+=i.amount});
   $('stats').innerHTML='';const add=(v,l)=>{const d=document.createElement('div');d.className='stat';d.innerHTML='<b></b><span></span>';d.querySelector('b').textContent=v;d.querySelector('span').textContent=l;$('stats').append(d)};
-  add(inv.length,'Invoices');Object.entries(by).forEach(([c,v])=>{add(fmt(v.billed-v.paid,c),`Waiting to be paid (${c})`);add(fmt(v.paid,c),`Received (${c})`)});
+  add(inv.length,'Invoices');{const od=inv.filter(isOverdue).length;if(od)add(od,'Overdue');}Object.entries(by).forEach(([c,v])=>{add(fmt(v.open,c),`Waiting to be paid (${c})`);add(fmt(v.paid,c),`Received (${c})`)});
   const f=$('feed');f.innerHTML='';if(!ev.length)f.innerHTML='<li class="hint">Nothing yet.</li>';
   ev.forEach(e=>{const li=document.createElement('li');li.innerHTML='<time></time><span></span>';li.querySelector('time').textContent=(e.ts||'').replace('T',' ').slice(5,16);li.querySelector('span').textContent=e.message;f.append(li)})}
   catch(e){console.error(e)}}
