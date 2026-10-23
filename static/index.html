@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -65,6 +65,16 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
 .feed li{padding:8px 0;border-bottom:1px solid var(--rule);font-size:15px}
 .feed time{color:var(--ink-soft);font-size:13px;margin-right:10px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;max-width:90vw;z-index:9}
+.chatlog{display:flex;flex-direction:column;gap:10px;max-height:440px;overflow:auto;margin:6px 0 4px}
+.msg{max-width:78%;padding:10px 14px;border-radius:12px;white-space:pre-wrap}
+.msg.you{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
+.msg.bahi{align-self:flex-start;background:#F3F5F8;border:1px solid #DCE2EA;border-bottom-left-radius:4px}
+.card{align-self:flex-start;border:2px dashed var(--thread);background:#FFFBEF;border-radius:10px;padding:12px 14px;max-width:78%}
+.card.high{border-color:var(--margin);background:#FFF3F2}
+.card p{margin:0 0 8px;font-weight:600}
+.card .done{color:var(--paid);font-weight:600}
+#ask{flex:1;min-width:200px;border:1px solid #C9D2DE;border-radius:8px;padding:10px 12px;font:inherit;color:var(--ink)}
+@media(max-width:600px){.msg,.card{max-width:92%}}
 </style>
 </head>
 <body>
@@ -96,6 +106,13 @@ table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-ali
     <div class="row"><button class="primary" id="sendBtn">Send via PayPal</button><a id="payLink" target="_blank" rel="noopener" hidden></a></div>
   </div>
   <div class="stamp" id="stamp">SENT</div>
+</section>
+<section class="panel wide" id="agentPanel">
+  <h2>Ask Bahi</h2>
+  <p class="hint">Ask about your payments, or tell Bahi what to do. Nothing is sent and no money moves until you confirm.</p>
+  <div class="chatlog" id="chatlog" aria-live="polite"></div>
+  <div class="chips" id="askChips"></div>
+  <form class="row" id="askForm"><input id="ask" placeholder="Kaun kaun late hai? Sabko reminder bhejo" autocomplete="off" aria-label="Ask Bahi"><button class="primary" id="askBtn">Ask</button></form>
 </section>
 <section class="panel wide">
   <h2>Ledger</h2>
@@ -185,6 +202,25 @@ $('photoBtn').onclick=()=>$('file').click();
 $('file').onchange=e=>{const f=e.target.files[0];if(f)extractFile(f,f.name,'Reading the bill…');e.target.value=''};
 $('txt').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))extractText()};
 $('f_cur').onchange=recalc;$('f_email').oninput=()=>$('f_email').classList.toggle('missing',!$('f_email').value.trim());
+let chatHist=[];
+function addMsg(who,text){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;$('chatlog').append(d);$('chatlog').scrollTop=1e9;return d}
+function addCard(a){const c=document.createElement('div');c.className='card'+(a.high_value?' high':'');
+  c.innerHTML='<p></p><div class="row" style="margin:0"><button class="primary">Confirm</button><button>Dismiss</button></div>';
+  c.querySelector('p').textContent=a.summary;const [ok,no]=c.querySelectorAll('button');
+  ok.onclick=async()=>{if(a.high_value&&!window.confirm(a.summary+'\n\nThis is above your safety limit. Go ahead?'))return;
+    ok.disabled=no.disabled=true;ok.textContent='Working?';
+    try{const r=await api(`/api/actions/${a.id}/confirm`,{method:'POST'});const d=document.createElement('div');d.className='done';d.textContent='Done. '+r.message;c.querySelector('.row').replaceWith(d);loadLedger()}
+    catch(e){toast(e.message);ok.disabled=no.disabled=false;ok.textContent='Confirm'}};
+  no.onclick=async()=>{try{await api(`/api/actions/${a.id}/dismiss`,{method:'POST'})}catch{}const d=document.createElement('div');d.className='hint';d.textContent='Dismissed. Nothing was changed.';c.querySelector('.row').replaceWith(d)};
+  $('chatlog').append(c);$('chatlog').scrollTop=1e9}
+async function ask(e){if(e)e.preventDefault();const q=$('ask').value.trim();if(!q)return;$('ask').value='';addMsg('you',q);
+  const w=addMsg('bahi','Checking PayPal?');$('askBtn').disabled=true;
+  try{const r=await api('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,history:chatHist})});
+    const reply=(r.reply||'Done.').replace(/\*\*/g,'');w.textContent=reply;chatHist.push({role:'user',text:q},{role:'model',text:reply});chatHist=chatHist.slice(-10);(r.actions||[]).forEach(addCard)}
+  catch(err){w.textContent='I could not reach PayPal or the AI just now. Try again in a moment.';toast(err.message)}
+  finally{$('askBtn').disabled=false;$('ask').focus()}}
+$('askForm').onsubmit=ask;
+["Sarah ka payment aaya kya?","Kaun kaun late hai? Sabko polite reminder bhejo","Sarah ko 50 dollar refund kar do, ek revision cancel hua"].forEach(q=>{const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=q;b.onclick=()=>{$('ask').value=q;$('ask').focus()};$('askChips').append(b)});
 loadLedger();setInterval(loadLedger,4000);
 </script>
 </body>

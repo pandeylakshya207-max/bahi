@@ -99,6 +99,37 @@ async def paypal_webhook(request: Request):
     else:
         db.log("paypal_event", event.get("summary") or etype)
     return {"ok": True}
+# ---- Bahi agent: tool-calling over PayPal, money moves only after confirmation ----
+import agent
+
+class ChatIn(BaseModel):
+    message: str
+    history: list[dict] = []
+
+@app.post("/api/agent", summary="Talk to Bahi's agent")
+async def agent_chat(body: ChatIn):
+    return await run_in_threadpool(agent.chat, body.message, body.history)
+
+@app.get("/api/actions", summary="Actions waiting for confirmation")
+def pending_actions():
+    return list(agent.PENDING.values())
+
+@app.post("/api/actions/{action_id}/confirm", summary="User confirms an agent action")
+async def confirm_action(action_id: str):
+    try:
+        return await run_in_threadpool(agent.execute, action_id)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except pp.PayPalError as e:
+        db.log("error", str(e))
+        raise HTTPException(502, str(e))
+
+@app.post("/api/actions/{action_id}/dismiss", summary="User rejects an agent action")
+def dismiss_action(action_id: str):
+    if not agent.PENDING.pop(action_id, None):
+        raise HTTPException(404, "Action not found")
+    return {"ok": True}
+
 # ---- serve the web app (must stay at the very end) ----
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
