@@ -175,7 +175,7 @@ import threading, runpy, pathlib as _pl
 
 @app.get("/api/health", include_in_schema=False)
 def health():
-    return {"ok": True, "paypal": pp.fingerprint()}
+    return {"ok": True}
 
 def _bootstrap():
     print("PayPal key check:", pp.key_shapes(), flush=True)
