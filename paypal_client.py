@@ -15,6 +15,19 @@ def key_shapes():
         out[k] = {"len": len(v), "starts": v[:2], "whitespace": v != v.strip() or " " in v}
     return out
 
+def fingerprint():
+    import hashlib
+    out = {}
+    for k in ("PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET"):
+        v = os.getenv(k) or ""
+        out[k] = {"len": len(v), "hash": hashlib.sha256(v.encode()).hexdigest()[:8]}
+    out["PAYPAL_BASE"] = os.getenv("PAYPAL_BASE")
+    try:
+        _get_token(); out["login"] = "OK"
+    except Exception as e:
+        out["login"] = str(e)[:80]
+    return out
+
 def _get_token():
     if _token["value"] and time.time() < _token["exp"] - 60:
         return _token["value"]
