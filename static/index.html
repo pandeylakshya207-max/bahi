@@ -1,0 +1,187 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bahi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Martel:wght@400;700;800&family=Mukta:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--cover:#8E1B1B;--cover-deep:#6B1212;--thread:#C8A24A;--ink:#17223B;--ink-soft:#56607A;
+ --paper:#FFFFFF;--page:#EEF1F5;--rule:#D5DEEA;--margin:#D9534F;--paid:#2F7D4F;--warn:#B7791F}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:16px/1.55 Mukta,system-ui,sans-serif}
+header{background:var(--cover);color:#fff;border-bottom:4px solid var(--thread)}
+.bar{max-width:1180px;margin:0 auto;padding:18px 20px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.logo{font:800 30px/1 Martel,serif}
+.tag{opacity:.88}
+main{max-width:1180px;margin:0 auto;padding:24px 16px 60px;display:grid;grid-template-columns:5fr 6fr;gap:24px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+h2{font:700 20px/1.3 Martel,serif;margin:0 0 12px}
+.panel{background:var(--paper);border-radius:10px;padding:20px;border:1px solid #DCE2EA}
+.wide{grid-column:1/-1}
+textarea{width:100%;min-height:120px;border:1px solid #C9D2DE;border-radius:8px;padding:12px;font:inherit;resize:vertical;color:var(--ink)}
+textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid #F2D78A;outline-offset:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+button{font:600 15px Mukta,sans-serif;border-radius:8px;border:1px solid #C9D2DE;background:#fff;color:var(--ink);padding:9px 14px;cursor:pointer}
+button.primary{background:var(--cover);color:#fff;border-color:var(--cover)}
+button.primary:hover{background:var(--cover-deep)}
+button:disabled{opacity:.55;cursor:wait}
+button.rec{border-color:var(--margin);color:var(--margin)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{font:400 14px Mukta,sans-serif;padding:4px 10px;border-radius:999px;background:#F3F5F8;border:1px solid #DCE2EA}
+.hint{color:var(--ink-soft);font-size:14px}
+.sheet{position:relative;border:1px solid #DCE2EA;border-radius:10px;padding:22px 22px 22px 64px;min-height:440px;
+ background:repeating-linear-gradient(#fff 0 35px,var(--rule) 35px 36px)}
+.sheet::before{content:"";position:absolute;left:48px;top:0;bottom:0;border-left:2px solid var(--margin);opacity:.7}
+.field{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;min-height:36px}
+.field label{color:var(--ink-soft);font-size:14px}
+.sheet input,.sheet select{font:inherit;border:0;border-bottom:1px dashed transparent;background:transparent;padding:2px 4px;width:100%;color:var(--ink)}
+.sheet input:hover{border-bottom-color:#B9C4D4}
+.missing{background:#FFF4D6!important;border-bottom:1px dashed var(--warn)!important}
+table.items{width:100%;border-collapse:collapse;margin-top:6px}
+table.items th,table.items td{height:36px;padding:0 4px;text-align:left;font-weight:400}
+table.items th{color:var(--ink-soft);font-size:14px}
+.num,.num input{text-align:right}
+.total{font:800 26px Martel,serif;text-align:right;margin:4px 0 6px}
+.meta{display:flex;gap:8px;flex-wrap:wrap;min-height:36px;align-items:center}
+.badge{font-size:13px;padding:2px 9px;border-radius:999px;background:#EEF1F5}
+.stamp{position:absolute;right:28px;top:64px;border:4px solid var(--paid);color:var(--paid);font:800 34px Martel,serif;
+ padding:2px 16px;border-radius:6px;transform:rotate(-12deg) scale(2.2);opacity:0;pointer-events:none}
+.stamp.on{animation:stamp .45s cubic-bezier(.2,.9,.3,1.3) forwards}
+@keyframes stamp{to{transform:rotate(-12deg) scale(1);opacity:.9}}
+@media(prefers-reduced-motion:reduce){.stamp.on{animation:none;transform:rotate(-12deg);opacity:.9}}
+.empty{color:var(--ink-soft);padding-top:150px;text-align:center}
+#payLink{font-weight:600;color:var(--cover)}
+.stats{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:14px}
+.stat b{display:block;font:800 24px Martel,serif}
+.stat span{color:var(--ink-soft);font-size:14px}
+.scroll{overflow-x:auto}
+table.ledger{width:100%;border-collapse:collapse;font-size:15px;min-width:620px}
+table.ledger th{text-align:left;color:var(--ink-soft);font-weight:500;border-bottom:2px solid var(--ink);padding:8px 6px}
+table.ledger td{border-bottom:1px solid var(--rule);padding:9px 6px;vertical-align:top}
+.st{font-weight:600}.st.PAID{color:var(--paid)}.st.SENT{color:var(--warn)}.st.CANCELLED{color:#888}
+.feed{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+.feed li{padding:8px 0;border-bottom:1px solid var(--rule);font-size:15px}
+.feed time{color:var(--ink-soft);font-size:13px;margin-right:10px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;max-width:90vw;z-index:9}
+</style>
+</head>
+<body>
+<header><div class="bar"><div class="logo">बही Bahi</div><div class="tag">Your PayPal back office. Say it, snap it, or type it, in any language.</div></div></header>
+<main>
+<section class="panel">
+  <h2>What do you want to bill?</h2>
+  <textarea id="txt" placeholder="Sarah ko 3 logo designs ka total $450 bhejo, sarah@acme.com, 2 hafte me"></textarea>
+  <div class="chips" id="chips"></div>
+  <div class="row">
+    <button class="primary" id="readBtn">Draft invoice</button>
+    <button id="photoBtn">Snap a bill</button>
+    <button id="voiceBtn">Speak</button>
+    <input type="file" id="file" accept="image/*,application/pdf" hidden>
+  </div>
+  <p class="hint" id="status">Hindi, Hinglish or English. Bahi never guesses an email; it asks.</p>
+</section>
+<section class="sheet" id="sheet" aria-live="polite">
+  <div class="empty" id="empty">Your draft invoice will appear on this page.</div>
+  <div id="draft" hidden>
+    <div class="meta" id="meta"></div>
+    <div class="field"><label for="f_name">Client</label><input id="f_name"></div>
+    <div class="field"><label for="f_email">Email</label><input id="f_email" type="email" placeholder="client@company.com"></div>
+    <div class="field"><label for="f_cur">Currency</label><select id="f_cur"><option>USD</option><option>EUR</option><option>GBP</option><option>AUD</option><option>CAD</option></select></div>
+    <div class="field"><label for="f_due">Due in days</label><input id="f_due" type="number" min="0" style="max-width:90px"></div>
+    <table class="items"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th></tr></thead><tbody id="items"></tbody></table>
+    <div class="total" id="total"></div>
+    <div class="field"><label for="f_note">Note</label><input id="f_note"></div>
+    <div class="row"><button class="primary" id="sendBtn">Send via PayPal</button><a id="payLink" target="_blank" rel="noopener" hidden></a></div>
+  </div>
+  <div class="stamp" id="stamp">SENT</div>
+</section>
+<section class="panel wide">
+  <h2>Ledger</h2>
+  <div class="stats" id="stats"></div>
+  <div class="scroll"><table class="ledger"><thead><tr><th>No.</th><th>Client</th><th class="num">Amount</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody id="ledger"></tbody></table></div>
+</section>
+<section class="panel wide"><h2>Activity</h2><ul class="feed" id="feed"></ul></section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const $=id=>document.getElementById(id);
+let draft=null,rec=null,chunks=[];
+const BTNS=['readBtn','photoBtn','voiceBtn','sendBtn'];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=(v,c)=>{try{return new Intl.NumberFormat('en-IN',{style:'currency',currency:c}).format(v)}catch{return Number(v).toFixed(2)+' '+c}};
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4500)}
+function lock(on,msg){BTNS.forEach(i=>$(i).disabled=on);if(msg)$('status').textContent=msg}
+async function api(path,opts={}){const r=await fetch(path,opts);let d={};try{d=await r.json()}catch{}
+  if(!r.ok)throw new Error(typeof d.detail==='string'?d.detail:(d.detail?JSON.stringify(d.detail):'Error '+r.status));return d}
+
+["Sarah ko 3 logo designs ka total $450 bhejo, sarah@acme.com, 2 hafte me",
+ "Hans Müller ke liye 5 product photos, 40 euro each, hans@studio.de",
+ "Website redesign for John, $1200 plus 2 months hosting at $25, due next Friday"].forEach(e=>{
+  const b=document.createElement('button');b.className='chip';b.title=e;b.textContent=e.length>44?e.slice(0,44)+'…':e;
+  b.onclick=()=>{$('txt').value=e;$('txt').focus()};$('chips').append(b)});
+
+async function extractText(){const text=$('txt').value.trim();if(!text){toast('Type what you want to bill first.');return}
+  lock(true,'Reading your message…');
+  try{show(await api('/api/extract/text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})}));lock(false,'Check the draft, fix anything, then send.')}
+  catch(e){toast(e.message);lock(false,'Something went wrong. Try again.')}}
+async function extractFile(blob,name,msg){const fd=new FormData();fd.append('file',blob,name);const t=$('txt').value.trim();if(t)fd.append('text',t);
+  lock(true,msg);
+  try{show(await api('/api/extract/file',{method:'POST',body:fd}));lock(false,'Check the draft, fix anything, then send.')}
+  catch(e){toast(e.message);lock(false,'Something went wrong. Try again.')}}
+
+function show(d){draft=d;$('empty').hidden=true;$('draft').hidden=false;$('stamp').classList.remove('on');$('payLink').hidden=true;$('sendBtn').hidden=false;
+  $('meta').innerHTML='';[`Understood: ${d.input_language}`,`Confidence ${Math.round((d.confidence||0)*100)}%`].forEach(t=>{const s=document.createElement('span');s.className='badge';s.textContent=t;$('meta').append(s)});
+  $('f_name').value=d.client_name||'';$('f_email').value=d.client_email||'';$('f_email').classList.toggle('missing',!d.client_email);
+  const cur=$('f_cur');if(![...cur.options].some(o=>o.value===d.currency))cur.add(new Option(d.currency));cur.value=d.currency;
+  $('f_due').value=d.due_days;$('f_note').value=d.note||'';$('items').innerHTML='';(d.items||[]).forEach(addRow);recalc();
+  if(!d.client_email)$('f_email').focus()}
+function addRow(it){const tr=document.createElement('tr');
+  tr.innerHTML='<td><input class="i_name" aria-label="Item"></td><td class="num"><input class="i_qty" type="number" min="0" step="any" aria-label="Quantity"></td><td class="num"><input class="i_price" type="number" min="0" step="0.01" aria-label="Price"></td><td class="num i_amt"></td>';
+  tr.querySelector('.i_name').value=it.name;tr.querySelector('.i_qty').value=it.quantity;tr.querySelector('.i_price').value=it.unit_amount;
+  tr.querySelectorAll('input').forEach(i=>i.oninput=recalc);$('items').append(tr)}
+function readItems(){return [...$('items').rows].map(r=>({name:r.querySelector('.i_name').value.trim(),quantity:parseFloat(r.querySelector('.i_qty').value)||0,unit_amount:parseFloat(r.querySelector('.i_price').value)||0})).filter(i=>i.name&&i.quantity>0)}
+function recalc(){const c=$('f_cur').value;let t=0;[...$('items').rows].forEach(r=>{const a=(parseFloat(r.querySelector('.i_qty').value)||0)*(parseFloat(r.querySelector('.i_price').value)||0);t+=a;r.querySelector('.i_amt').textContent=fmt(a,c)});$('total').textContent=fmt(t,c)}
+
+async function send(){const email=$('f_email').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){$('f_email').classList.add('missing');$('f_email').focus();toast("Add the client's email so PayPal can send the invoice.");return}
+  const items=readItems();if(!items.length){toast('Add at least one item with a quantity.');return}
+  const body={...draft,client_name:$('f_name').value.trim()||'Client',client_email:email,currency:$('f_cur').value,due_days:parseInt($('f_due').value)||7,note:$('f_note').value.trim(),items,missing_fields:[]};
+  lock(true,'Creating the invoice in PayPal…');
+  try{const r=await api('/api/invoices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    $('stamp').classList.add('on');$('sendBtn').hidden=true;const a=$('payLink');a.href=r.pay_link;a.textContent=`Open the client's pay page for #${r.number}`;a.hidden=false;
+    lock(false,`PayPal invoice #${r.number} for ${r.amount} is on its way to ${body.client_name}.`);loadLedger()}
+  catch(e){toast(e.message);lock(false,'PayPal did not accept the invoice. Check the details and try again.')}}
+
+async function toggleVoice(){if(rec&&rec.state==='recording'){rec.stop();return}
+  try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];rec=new MediaRecorder(stream);
+    rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=()=>{stream.getTracks().forEach(t=>t.stop());$('voiceBtn').textContent='Speak';$('voiceBtn').classList.remove('rec');
+      const type=(rec.mimeType||'audio/webm').split(';')[0];extractFile(new Blob(chunks,{type}),'voice.webm','Listening to your voice note…')};
+    rec.start();$('voiceBtn').textContent='Stop recording';$('voiceBtn').classList.add('rec');$('status').textContent='Recording. Speak naturally, then press Stop recording.'}
+  catch(e){toast('Microphone not available: '+e.message)}}
+
+async function loadLedger(){try{const [inv,ev]=await Promise.all([api('/api/invoices'),api('/api/events')]);
+  const tb=$('ledger');tb.innerHTML='';
+  if(!inv.length)tb.innerHTML='<tr><td colspan="6" class="hint">No invoices yet. Draft your first one above.</td></tr>';
+  inv.forEach(i=>{const tr=document.createElement('tr');
+    tr.innerHTML=`<td>#${esc(i.number)}</td><td>${esc(i.client_name)}<div class="hint">${esc(i.client_email)}</div></td><td class="num">${esc(fmt(i.amount,i.currency))}</td><td><span class="st ${esc(i.status)}">${esc(i.status)}</span></td><td>${esc((i.created_at||'').replace('T',' ').slice(0,16))}</td><td><button>Check status</button></td>`;
+    tr.querySelector('button').onclick=()=>refresh(i.id);tb.append(tr)});
+  const by={};inv.forEach(i=>{const c=i.currency;by[c]=by[c]||{billed:0,paid:0};by[c].billed+=i.amount;if(i.status==='PAID')by[c].paid+=i.amount});
+  $('stats').innerHTML='';const add=(v,l)=>{const d=document.createElement('div');d.className='stat';d.innerHTML='<b></b><span></span>';d.querySelector('b').textContent=v;d.querySelector('span').textContent=l;$('stats').append(d)};
+  add(inv.length,'Invoices');Object.entries(by).forEach(([c,v])=>{add(fmt(v.billed-v.paid,c),`Waiting to be paid (${c})`);add(fmt(v.paid,c),`Received (${c})`)});
+  const f=$('feed');f.innerHTML='';if(!ev.length)f.innerHTML='<li class="hint">Nothing yet.</li>';
+  ev.forEach(e=>{const li=document.createElement('li');li.innerHTML='<time></time><span></span>';li.querySelector('time').textContent=(e.ts||'').replace('T',' ').slice(5,16);li.querySelector('span').textContent=e.message;f.append(li)})}
+  catch(e){console.error(e)}}
+async function refresh(id){try{const r=await api(`/api/invoices/${id}/refresh`,{method:'POST'});toast(`Invoice #${r.number} is ${r.status}.`);loadLedger()}catch(e){toast(e.message)}}
+
+$('readBtn').onclick=extractText;$('sendBtn').onclick=send;$('voiceBtn').onclick=toggleVoice;
+$('photoBtn').onclick=()=>$('file').click();
+$('file').onchange=e=>{const f=e.target.files[0];if(f)extractFile(f,f.name,'Reading the bill…');e.target.value=''};
+$('txt').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))extractText()};
+$('f_cur').onchange=recalc;$('f_email').oninput=()=>$('f_email').classList.toggle('missing',!$('f_email').value.trim());
+loadLedger();setInterval(loadLedger,15000);
+</script>
+</body>
+</html>
